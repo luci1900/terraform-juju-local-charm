@@ -28,6 +28,7 @@ locals {
     var.constraints != null ? ["--constraints \"$CONSTRAINTS\""] : [],
     length(var.endpoint_bindings) > 0 ? ["--bind \"$BINDINGS\""] : [],
     [for i, k in local.resource_names : "--resource \"$RESOURCE_${i}\""],
+    [for i, k in local.config_names : "--config \"$CONFIG_${i}\""],
   ))
 
   refresh_command = "\"$JUJU\" refresh \"$APP\" -m \"$MODEL\" --path \"$CHARM\""
@@ -40,6 +41,10 @@ locals {
   # so deploy passes them as RESOURCE_0, RESOURCE_1, ...
   resource_names = sort(keys(var.resources))
   resource_env   = { for i, k in local.resource_names : "RESOURCE_${i}" => "${k}=${local.resource_values[k]}" }
+
+  # Same for config keys.
+  config_names = sort(keys(var.config))
+  config_env   = { for i, k in local.config_names : "CONFIG_${i}" => "${k}=${var.config[k]}" }
 }
 
 # Owns the application's lifetime: the only resource that removes it.
@@ -67,7 +72,7 @@ resource "terraform_data" "charm" {
       BASE        = coalesce(var.base, "-")
       CONSTRAINTS = coalesce(var.constraints, "-")
       BINDINGS    = local.bindings
-    }, local.resource_env)
+    }, local.resource_env, local.config_env)
   }
 }
 
@@ -85,8 +90,9 @@ resource "terraform_data" "resource" {
   }
 }
 
-# Config is split in two so a value change never resets the key first:
-# config_key only resets a key when it is removed, config_value only sets it.
+# Config is passed to deploy. After that it is split in two so a value change
+# never resets the key first: config_key only resets a key when it is removed,
+# config_value only sets a changed value.
 resource "terraform_data" "config_key" {
   for_each = toset(keys(var.config))
 
@@ -110,12 +116,12 @@ resource "terraform_data" "config_value" {
   depends_on = [terraform_data.charm]
 
   provisioner "local-exec" {
-    command     = "\"$JUJU\" config \"$APP\" -m \"$MODEL\" \"$KEY=$VALUE\""
+    command     = local.app_exists ? "\"$JUJU\" config \"$APP\" -m \"$MODEL\" \"$KEY=$VALUE\"" : "true"
     environment = merge(local.env, { KEY = each.key, VALUE = each.value })
   }
 }
 
-# Constraints and bindings are passed at deploy. These only re-apply changes
+# Constraints and bindings are passed to deploy. These only re-apply changes
 # to an existing application.
 resource "terraform_data" "constraints" {
   triggers_replace = [var.constraints == null ? "" : var.constraints, terraform_data.app.id]

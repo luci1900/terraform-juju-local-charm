@@ -1,0 +1,5 @@
+options:
+  greeting:
+    type: string
+    default: hello
+    description: test option

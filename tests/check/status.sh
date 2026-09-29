@@ -1,7 +1,7 @@
 #!/bin/sh
-# Prints the application's charm revision, and each resource's fingerprint and
-# upload timestamp, as a flat JSON map of strings:
-#   {"charm_rev":"<n>","fingerprint:<name>":"...","timestamp:<name>":"..."}
+# Prints the application's charm revision, config values, and each resource's
+# fingerprint and upload timestamp, as a flat JSON map of strings:
+#   {"charm_rev":"<n>","config:<key>":"...","fingerprint:<name>":"...","timestamp:<name>":"..."}
 # Requires jq.
 set -eu
 cat >/dev/null
@@ -17,4 +17,6 @@ res=$(echo "$res_json" |
 	jq -c '[.resources // [] | .[] |
 		{key: ("fingerprint:" + .name), value: .fingerprint},
 		{key: ("timestamp:" + .name), value: .timestamp}] | from_entries')
-jq -nc --argjson a "$rev" --argjson b "$res" '$a + $b'
+cfg=$(juju config "$2" -m "$1" --format=json |
+	jq -c '[.settings // {} | to_entries[] | {key: ("config:" + .key), value: (.value.value // "" | tostring)}] | from_entries')
+jq -nc --argjson a "$rev" --argjson b "$res" --argjson c "$cfg" '$a + $b + $c'

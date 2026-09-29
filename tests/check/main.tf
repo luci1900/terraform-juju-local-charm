@@ -20,6 +20,10 @@ output "resource_fingerprints" {
   value = { for k, v in data.external.status.result : trimprefix(k, "fingerprint:") => v if startswith(k, "fingerprint:") }
 }
 
+output "config" {
+  value = { for k, v in data.external.status.result : trimprefix(k, "config:") => v if startswith(k, "config:") }
+}
+
 # Changes on every upload, even of the same file or image.
 output "resource_timestamps" {
   value = { for k, v in data.external.status.result : trimprefix(k, "timestamp:") => v if startswith(k, "timestamp:") }
