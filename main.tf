@@ -29,7 +29,17 @@ locals {
     [for i, k in local.config_names : "--config \"$CONFIG_${i}\""],
   ))
 
-  refresh_command = "\"$JUJU\" refresh \"$APP\" -m \"$MODEL\" --path \"$CHARM\""
+  refresh_command = <<-EOT
+    "$JUJU" refresh "$APP" -m "$MODEL" --path "$CHARM"
+  EOT
+
+  attach_command = <<-EOT
+    "$JUJU" attach-resource "$APP" -m "$MODEL" "$RESOURCE"
+  EOT
+
+  config_command = <<-EOT
+    "$JUJU" config "$APP" -m "$MODEL" "$KEY=$VALUE"
+  EOT
 
   # File resources are tracked by content, image references by value.
   resource_values       = { for k, v in var.resources : k => fileexists(v) ? abspath(v) : v }
@@ -67,7 +77,9 @@ resource "terraform_data" "app" {
 
   provisioner "local-exec" {
     when        = destroy
-    command     = "sh \"$RUN_IF_EXISTS\" \"$JUJU\" remove-application \"$APP\" -m \"$MODEL\" --no-prompt"
+    command     = <<-EOT
+      sh "$RUN_IF_EXISTS" "$JUJU" remove-application "$APP" -m "$MODEL" --no-prompt
+    EOT
     environment = self.input
   }
 }
@@ -97,7 +109,7 @@ resource "terraform_data" "resource" {
   depends_on       = [terraform_data.charm]
 
   provisioner "local-exec" {
-    command     = local.app_exists ? "\"$JUJU\" attach-resource \"$APP\" -m \"$MODEL\" \"$RESOURCE\"" : "true"
+    command     = local.app_exists ? local.attach_command : "true"
     environment = merge(local.env, { RESOURCE = "${each.key}=${local.resource_values[each.key]}" })
   }
 }
@@ -113,7 +125,9 @@ resource "terraform_data" "config_key" {
 
   provisioner "local-exec" {
     when        = destroy
-    command     = "sh \"$RUN_IF_EXISTS\" \"$JUJU\" config \"$APP\" -m \"$MODEL\" --reset \"$KEY\""
+    command     = <<-EOT
+      sh "$RUN_IF_EXISTS" "$JUJU" config "$APP" -m "$MODEL" --reset "$KEY"
+    EOT
     environment = self.input
   }
 }
@@ -126,7 +140,7 @@ resource "terraform_data" "config_value" {
   depends_on = [terraform_data.charm]
 
   provisioner "local-exec" {
-    command     = local.app_exists ? "\"$JUJU\" config \"$APP\" -m \"$MODEL\" \"$KEY=$VALUE\"" : "true"
+    command     = local.app_exists ? local.config_command : "true"
     environment = merge(local.env, { KEY = each.key, VALUE = each.value })
   }
 }
@@ -154,11 +168,12 @@ resource "terraform_data" "expose" {
 
   provisioner "local-exec" {
     when        = destroy
-    command     = "sh \"$RUN_IF_EXISTS\" \"$JUJU\" unexpose \"$APP\" -m \"$MODEL\""
+    command     = <<-EOT
+      sh "$RUN_IF_EXISTS" "$JUJU" unexpose "$APP" -m "$MODEL"
+    EOT
     environment = self.input
   }
 }
-
 
 # Records deploy-time inputs at deploy, for the check below.
 resource "terraform_data" "deployed" {
