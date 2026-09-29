@@ -15,9 +15,9 @@ locals {
     JUJU  = var.juju_binary
     MODEL = var.model_uuid
     APP   = var.app_name
-    # Used by destroy provisioners to skip their command if the app was
-    # removed outside Terraform. Any other error still fails the destroy.
-    EXISTS = abspath("${path.module}/scripts/app-exists.sh")
+    # Wraps destroy commands so they're skipped if the app was removed
+    # outside Terraform.
+    RUN_IF_EXISTS = abspath("${path.module}/scripts/run-if-app-exists.sh")
   }
 
   bindings = join(" ", [for k, v in var.endpoint_bindings : k == "" ? v : "${k}=${v}"])
@@ -72,7 +72,7 @@ resource "terraform_data" "app" {
 
   provisioner "local-exec" {
     when        = destroy
-    command     = "e=$(sh \"$EXISTS\" \"$JUJU\" \"$MODEL\" \"$APP\" </dev/null) || exit 1; case \"$e\" in *'\"exists\":\"false\"'*) ;; *) \"$JUJU\" remove-application \"$APP\" -m \"$MODEL\" --no-prompt ;; esac"
+    command     = "sh \"$RUN_IF_EXISTS\" \"$JUJU\" remove-application \"$APP\" -m \"$MODEL\" --no-prompt"
     environment = self.input
   }
 }
@@ -121,7 +121,7 @@ resource "terraform_data" "config_key" {
 
   provisioner "local-exec" {
     when        = destroy
-    command     = "e=$(sh \"$EXISTS\" \"$JUJU\" \"$MODEL\" \"$APP\" </dev/null) || exit 1; case \"$e\" in *'\"exists\":\"false\"'*) ;; *) \"$JUJU\" config \"$APP\" -m \"$MODEL\" --reset \"$KEY\" ;; esac"
+    command     = "sh \"$RUN_IF_EXISTS\" \"$JUJU\" config \"$APP\" -m \"$MODEL\" --reset \"$KEY\""
     environment = self.input
   }
 }
@@ -163,7 +163,7 @@ resource "terraform_data" "expose" {
 
   provisioner "local-exec" {
     when        = destroy
-    command     = "e=$(sh \"$EXISTS\" \"$JUJU\" \"$MODEL\" \"$APP\" </dev/null) || exit 1; case \"$e\" in *'\"exists\":\"false\"'*) ;; *) \"$JUJU\" unexpose \"$APP\" -m \"$MODEL\" ;; esac"
+    command     = "sh \"$RUN_IF_EXISTS\" \"$JUJU\" unexpose \"$APP\" -m \"$MODEL\""
     environment = self.input
   }
 }
