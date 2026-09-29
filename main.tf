@@ -27,6 +27,8 @@ locals {
     var.base != null ? ["--base \"$BASE\""] : [],
     var.constraints != null ? ["--constraints \"$CONSTRAINTS\""] : [],
     length(var.endpoint_bindings) > 0 ? ["--bind \"$BINDINGS\""] : [],
+    var.trust ? ["--trust"] : [],
+    [for i, k in local.storage_names : "--storage \"$STORAGE_${i}\""],
     [for i, k in local.resource_names : "--resource \"$RESOURCE_${i}\""],
     [for i, k in local.config_names : "--config \"$CONFIG_${i}\""],
   ))
@@ -42,7 +44,23 @@ locals {
   resource_names = sort(keys(var.resources))
   resource_env   = { for i, k in local.resource_names : "RESOURCE_${i}" => "${k}=${local.resource_values[k]}" }
 
-  # Same for config keys.
+  deploy_time = {
+    units              = var.units
+    base               = var.base
+    constraints        = var.constraints
+    trust              = var.trust
+    storage_directives = var.storage_directives
+    endpoint_bindings  = var.endpoint_bindings
+  }
+  deploy_time_changed = [
+    for k, v in local.deploy_time : k
+    if jsonencode(v) != jsonencode(terraform_data.deployed.output[k])
+  ]
+
+  # Same for storage and config keys.
+  storage_names = sort(keys(var.storage_directives))
+  storage_env   = { for i, k in local.storage_names : "STORAGE_${i}" => "${k}=${var.storage_directives[k]}" }
+
   config_names = sort(keys(var.config))
   config_env   = { for i, k in local.config_names : "CONFIG_${i}" => "${k}=${var.config[k]}" }
 }
@@ -54,13 +72,14 @@ resource "terraform_data" "app" {
 
   provisioner "local-exec" {
     when        = destroy
-    command     = "e=$(sh \"$EXISTS\" \"$JUJU\" \"$MODEL\" \"$APP\" </dev/null) || exit 1; [ \"$e\" = '{\"exists\":\"false\"}' ] || \"$JUJU\" remove-application \"$APP\" -m \"$MODEL\" --no-prompt"
+    command     = "e=$(sh \"$EXISTS\" \"$JUJU\" \"$MODEL\" \"$APP\" </dev/null) || exit 1; case \"$e\" in *'\"exists\":\"false\"'*) ;; *) \"$JUJU\" remove-application \"$APP\" -m \"$MODEL\" --no-prompt ;; esac"
     environment = self.input
   }
 }
 
 # Deploys on first apply, refreshes when the charm file changes. Replacing it
-# never removes the application.
+# never removes the application. Units, base, constraints, trust, storage and
+# bindings are only used at deploy.
 resource "terraform_data" "charm" {
   triggers_replace = [filesha256(var.charm_path), terraform_data.app.id]
 
@@ -72,7 +91,7 @@ resource "terraform_data" "charm" {
       BASE        = coalesce(var.base, "-")
       CONSTRAINTS = coalesce(var.constraints, "-")
       BINDINGS    = local.bindings
-    }, local.resource_env, local.config_env)
+    }, local.resource_env, local.storage_env, local.config_env)
   }
 }
 
@@ -102,7 +121,7 @@ resource "terraform_data" "config_key" {
 
   provisioner "local-exec" {
     when        = destroy
-    command     = "e=$(sh \"$EXISTS\" \"$JUJU\" \"$MODEL\" \"$APP\" </dev/null) || exit 1; [ \"$e\" = '{\"exists\":\"false\"}' ] || \"$JUJU\" config \"$APP\" -m \"$MODEL\" --reset \"$KEY\""
+    command     = "e=$(sh \"$EXISTS\" \"$JUJU\" \"$MODEL\" \"$APP\" </dev/null) || exit 1; case \"$e\" in *'\"exists\":\"false\"'*) ;; *) \"$JUJU\" config \"$APP\" -m \"$MODEL\" --reset \"$KEY\" ;; esac"
     environment = self.input
   }
 }
@@ -118,32 +137,6 @@ resource "terraform_data" "config_value" {
   provisioner "local-exec" {
     command     = local.app_exists ? "\"$JUJU\" config \"$APP\" -m \"$MODEL\" \"$KEY=$VALUE\"" : "true"
     environment = merge(local.env, { KEY = each.key, VALUE = each.value })
-  }
-}
-
-# Constraints and bindings are passed to deploy. These only re-apply changes
-# to an existing application.
-resource "terraform_data" "constraints" {
-  triggers_replace = [var.constraints == null ? "" : var.constraints, terraform_data.app.id]
-  depends_on       = [terraform_data.charm]
-
-  provisioner "local-exec" {
-    command     = local.app_exists ? "\"$JUJU\" set-constraints \"$APP\" -m \"$MODEL\" \"$CONSTRAINTS\"" : "true"
-    environment = merge(local.env, { CONSTRAINTS = var.constraints == null ? "" : var.constraints })
-  }
-}
-
-resource "terraform_data" "bindings" {
-  count = length(var.endpoint_bindings) > 0 ? 1 : 0
-
-  triggers_replace = [local.bindings, terraform_data.app.id]
-  depends_on       = [terraform_data.charm]
-
-  provisioner "local-exec" {
-    # $BINDINGS is deliberately unquoted: `juju bind` takes one argument per
-    # binding, and space/endpoint names can't contain whitespace.
-    command     = local.app_exists ? "\"$JUJU\" bind \"$APP\" -m \"$MODEL\" $BINDINGS" : "true"
-    environment = merge(local.env, { BINDINGS = local.bindings })
   }
 }
 
@@ -170,7 +163,27 @@ resource "terraform_data" "expose" {
 
   provisioner "local-exec" {
     when        = destroy
-    command     = "e=$(sh \"$EXISTS\" \"$JUJU\" \"$MODEL\" \"$APP\" </dev/null) || exit 1; [ \"$e\" = '{\"exists\":\"false\"}' ] || \"$JUJU\" unexpose \"$APP\" -m \"$MODEL\""
+    command     = "e=$(sh \"$EXISTS\" \"$JUJU\" \"$MODEL\" \"$APP\" </dev/null) || exit 1; case \"$e\" in *'\"exists\":\"false\"'*) ;; *) \"$JUJU\" unexpose \"$APP\" -m \"$MODEL\" ;; esac"
     environment = self.input
+  }
+}
+
+
+# Records the deploy-time inputs once per deploy, so the check below can warn
+# when they are changed afterwards.
+resource "terraform_data" "deployed" {
+  input            = local.deploy_time
+  triggers_replace = [terraform_data.app.id]
+  depends_on       = [terraform_data.charm]
+
+  lifecycle {
+    ignore_changes = [input]
+  }
+}
+
+check "deploy_time_inputs" {
+  assert {
+    condition     = length(local.deploy_time_changed) == 0
+    error_message = "Changed after deploy, so these have no effect: ${join(", ", local.deploy_time_changed)}. Replace the application to apply them (terraform apply -replace='<module address>.terraform_data.app')."
   }
 }

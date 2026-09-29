@@ -37,9 +37,15 @@ variable "base" {
 }
 
 variable "constraints" {
-  description = "Application constraints, e.g. \"mem=2G cores=2\"."
+  description = "Application constraints, e.g. \"mem=2G cores=2\". Deploy-time only: changing it after deploy has no effect."
   type        = string
   default     = null
+}
+
+variable "storage_directives" {
+  description = "Storage name => directive, e.g. { data = \"10G\" }, as passed to `juju deploy --storage`. Deploy-time only."
+  type        = map(string)
+  default     = {}
 }
 
 variable "config" {
@@ -54,8 +60,14 @@ variable "resources" {
   default     = {}
 }
 
+variable "trust" {
+  description = "Grant the application access to cloud credentials (--trust). Most k8s charms need it. Deploy-time only."
+  type        = bool
+  default     = false
+}
+
 variable "endpoint_bindings" {
-  description = "Endpoint => space. Use the key \"\" for the default space. Removing a binding does not unbind it."
+  description = "Endpoint => space. Use the key \"\" for the default space. Deploy-time only."
   type        = map(string)
   default     = {}
 }

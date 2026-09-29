@@ -9,8 +9,6 @@ output "app_name" {
     terraform_data.charm,
     terraform_data.resource,
     terraform_data.config_value,
-    terraform_data.constraints,
-    terraform_data.bindings,
     terraform_data.expose,
   ]
 }

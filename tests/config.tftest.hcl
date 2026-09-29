@@ -1,8 +1,10 @@
 # Config is passed at deploy, set when it changes (including an option that
 # only exists in the charm version being refreshed to), and reset when removed.
+# Trust is passed at deploy.
 
 variables {
   app_name = "local-charm-config"
+  trust    = true
 }
 
 run "setup" {
@@ -38,6 +40,22 @@ run "check_v1" {
     condition     = output.config["greeting"] == "hi"
     error_message = "expected greeting to be set at deploy"
   }
+  assert {
+    condition     = output.config["trust"] == "true"
+    error_message = "expected trust to be set at deploy"
+  }
+}
+
+# Deploy-time inputs changed later only produce a warning.
+run "change_deploy_time_input" {
+  command = plan
+  variables {
+    model_uuid = run.setup.model_uuid
+    charm_path = run.setup.charm_paths["test-charm-v1"]
+    config     = { greeting = "hi" }
+    units      = 2
+  }
+  expect_failures = [check.deploy_time_inputs]
 }
 
 # `extra` only exists in v2, so it must be set after the refresh.

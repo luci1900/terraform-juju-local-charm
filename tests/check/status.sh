@@ -18,5 +18,5 @@ res=$(echo "$res_json" |
 		{key: ("fingerprint:" + .name), value: .fingerprint},
 		{key: ("timestamp:" + .name), value: .timestamp}] | from_entries')
 cfg=$(juju config "$2" -m "$1" --format=json |
-	jq -c '[.settings // {} | to_entries[] | {key: ("config:" + .key), value: (.value.value // "" | tostring)}] | from_entries')
+	jq -c '[(.settings // {}) + (."application-config" // {}) | to_entries[] | {key: ("config:" + .key), value: (.value.value | if . == null then "" else tostring end)}] | from_entries')
 jq -nc --argjson a "$rev" --argjson b "$res" --argjson c "$cfg" '$a + $b + $c'
