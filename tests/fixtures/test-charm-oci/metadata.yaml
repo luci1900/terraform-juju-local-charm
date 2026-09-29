@@ -1,0 +1,10 @@
+name: test-charm-oci
+summary: test charm
+description: test charm with one workload container
+containers:
+  workload:
+    resource: workload-image
+resources:
+  workload-image:
+    type: oci-image
+    description: workload image
