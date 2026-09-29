@@ -1,7 +1,6 @@
 #!/bin/sh
-# External data source program: prints {"exists":"true"|"false"} for an
-# application. Any failure other than "application not found" is an error,
-# so a transient problem never looks like a missing application.
+# Prints {"exists":"true"|"false"}. Any other failure is an error, so a
+# transient problem never looks like a missing application.
 #
 # Usage: app-exists.sh <juju-binary> <model-uuid> <app-name>
 set -u
@@ -10,7 +9,7 @@ juju="$1"
 model="$2"
 app="$3"
 
-# The external data source writes its query to stdin. It isn't used.
+# Discard the external data source's query.
 cat >/dev/null
 
 if out=$("$juju" show-application "$app" -m "$model" --format=json 2>&1); then

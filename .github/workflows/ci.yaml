@@ -28,7 +28,6 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_wrapper: false
-      # Installs MicroK8s and Juju, and bootstraps a controller on MicroK8s.
       - name: Set up Juju on MicroK8s
         uses: charmed-kubernetes/actions-operator@main
         with:

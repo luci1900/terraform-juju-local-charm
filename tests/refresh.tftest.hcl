@@ -1,6 +1,4 @@
-# Deploy v1, refresh to v2, then apply again and check nothing changed.
-# Runs on the CLI's current controller (juju switch <controller>), in a new
-# model on its default cloud.
+# Deploy v1, refresh to v2, then check a reapply changes nothing.
 
 variables {
   app_name = "local-charm"
@@ -29,8 +27,7 @@ run "check_v1" {
   variables {
     model_uuid = run.setup.model_uuid
   }
-  # A local charm's first upload is revision 0. An extra refresh during the
-  # first apply would make it 1.
+  # A local charm's first upload is revision 0. 1 means an extra refresh.
   assert {
     condition     = output.charm_rev == 0
     error_message = "expected deploy only, without a refresh, on the first apply"
@@ -78,8 +75,7 @@ run "check_unchanged" {
   }
 }
 
-# Remove the app outside Terraform. Teardown then destroys the module, which
-# must succeed even though the app is already gone.
+# Teardown must then succeed with the app already gone.
 run "remove_out_of_band" {
   module {
     source = "./tests/remove-app"

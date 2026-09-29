@@ -1,6 +1,4 @@
-# Test helper: removes the application outside Terraform and waits until it's
-# gone, so the test's teardown exercises destroying an app that no longer
-# exists.
+# Removes the application outside Terraform and waits until it's gone.
 variable "model_uuid" { type = string }
 variable "app_name" { type = string }
 

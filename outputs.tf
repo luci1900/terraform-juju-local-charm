@@ -1,5 +1,4 @@
-# depends_on makes dependants (juju_integration, juju_offer, ...) wait for the
-# deploy, and be destroyed before the application is removed.
+# depends_on makes dependants wait for the deploy and be destroyed first.
 
 output "app_name" {
   description = "Application name, for juju_integration, juju_offer, juju_access_secret, etc."

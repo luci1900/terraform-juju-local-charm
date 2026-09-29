@@ -1,6 +1,5 @@
-# Config is passed at deploy, set when it changes (including an option that
-# only exists in the charm version being refreshed to), and reset when removed.
-# Trust is passed at deploy.
+# Config is set at deploy, updated on change (including a v2-only option), and
+# reset when removed.
 
 variables {
   app_name = "local-charm-config"
@@ -22,7 +21,7 @@ run "deploy_v1" {
     charm_path = run.setup.charm_paths["test-charm-v1"]
     config     = { greeting = "hi" }
   }
-  # Config went in with deploy, so `juju config` must be skipped on this apply.
+  # Config went in with deploy, so this apply must skip `juju config`.
   assert {
     condition     = data.external.app.result.exists == "false"
     error_message = "expected the first apply to see no existing app"

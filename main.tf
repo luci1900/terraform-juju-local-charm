@@ -1,22 +1,18 @@
-# Every command is a fixed string of tokens and "$VAR" references. Values are
-# passed through `environment`, so nothing user-supplied is ever interpolated
-# into a shell command. HCL decides which flags are present.
+# Values reach commands only through `environment` as "$VAR", so nothing
+# user-supplied is interpolated into shell.
 
 data "external" "app" {
   program = ["sh", "${path.module}/scripts/app-exists.sh", var.juju_binary, var.model_uuid, var.app_name]
 }
 
 locals {
-  # Only ever used to pick a command, never in triggers_replace: after the
-  # first deploy it flips to true, which must not cause a replacement.
+  # Only picks a command. Not for triggers_replace, as it flips after deploy.
   app_exists = data.external.app.result.exists == "true"
 
   env = {
-    JUJU  = var.juju_binary
-    MODEL = var.model_uuid
-    APP   = var.app_name
-    # Wraps destroy commands so they're skipped if the app was removed
-    # outside Terraform.
+    JUJU          = var.juju_binary
+    MODEL         = var.model_uuid
+    APP           = var.app_name
     RUN_IF_EXISTS = abspath("${path.module}/scripts/run-if-app-exists.sh")
   }
 
@@ -39,8 +35,7 @@ locals {
   resource_values       = { for k, v in var.resources : k => fileexists(v) ? abspath(v) : v }
   resource_fingerprints = { for k, v in var.resources : k => fileexists(v) ? filesha256(v) : v }
 
-  # Resource names can contain hyphens, which aren't valid in env var names,
-  # so deploy passes them as RESOURCE_0, RESOURCE_1, ...
+  # Names can contain hyphens, so they're passed as RESOURCE_0, RESOURCE_1, ...
   resource_names = sort(keys(var.resources))
   resource_env   = { for i, k in local.resource_names : "RESOURCE_${i}" => "${k}=${local.resource_values[k]}" }
 
@@ -77,9 +72,7 @@ resource "terraform_data" "app" {
   }
 }
 
-# Deploys on first apply, refreshes when the charm file changes. Replacing it
-# never removes the application. Units, base, constraints, trust, storage and
-# bindings are only used at deploy.
+# Deploys on first apply, then refreshes when the charm file changes.
 resource "terraform_data" "charm" {
   triggers_replace = [filesha256(var.charm_path), terraform_data.app.id]
 
@@ -95,8 +88,8 @@ resource "terraform_data" "charm" {
   }
 }
 
-# Resources are passed to deploy (k8s requires every image at deploy time).
-# This only re-attaches a resource that changes afterwards.
+# Resources go in at deploy (k8s requires every image then). This re-attaches
+# later changes.
 resource "terraform_data" "resource" {
   for_each = var.resources
 
@@ -109,9 +102,8 @@ resource "terraform_data" "resource" {
   }
 }
 
-# Config is passed to deploy. After that it is split in two so a value change
-# never resets the key first: config_key only resets a key when it is removed,
-# config_value only sets a changed value.
+# Split so a value change never resets the key first: config_key resets
+# removed keys, config_value sets changed values.
 resource "terraform_data" "config_key" {
   for_each = toset(keys(var.config))
 
@@ -130,8 +122,7 @@ resource "terraform_data" "config_value" {
   for_each = var.config
 
   triggers_replace = [each.value, terraform_data.config_key[each.key].id]
-  # Set config only after a refresh in the same apply, since the new charm may
-  # add the option.
+  # After a refresh, since the new charm may add the option.
   depends_on = [terraform_data.charm]
 
   provisioner "local-exec" {
@@ -169,8 +160,7 @@ resource "terraform_data" "expose" {
 }
 
 
-# Records the deploy-time inputs once per deploy, so the check below can warn
-# when they are changed afterwards.
+# Records deploy-time inputs at deploy, for the check below.
 resource "terraform_data" "deployed" {
   input            = local.deploy_time
   triggers_replace = [terraform_data.app.id]

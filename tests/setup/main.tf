@@ -1,6 +1,5 @@
-# Test setup: a throwaway model (via the juju provider, which falls back to
-# the CLI's current controller, on that controller's default cloud) and the
-# fixture charms packed into .charm files.
+# A throwaway model on the CLI's current controller, and the fixture charms
+# packed into .charm files.
 terraform {
   required_providers {
     juju    = { source = "juju/juju", version = ">= 1.0" }
@@ -15,7 +14,7 @@ variable "topic" {
   type = string
 }
 
-# Random suffix so concurrent or leftover test models don't collide.
+# Avoids collisions with concurrent or leftover test models.
 resource "random_string" "run" {
   length  = 4
   upper   = false
@@ -26,8 +25,7 @@ resource "juju_model" "test" {
   name = "tflc-${var.topic}-${random_string.run.result}"
 }
 
-# archive_file zips reproducibly (fixed timestamps), so re-packing an unchanged
-# fixture yields the same hash and doesn't trigger a refresh.
+# Zips reproducibly, so an unchanged fixture doesn't trigger a refresh.
 data "archive_file" "charm" {
   for_each    = toset(["test-charm-v1", "test-charm-v2", "test-charm-oci"])
   type        = "zip"

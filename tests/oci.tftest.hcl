@@ -1,6 +1,4 @@
-# k8s only: an oci-image resource is passed at deploy and re-attached when it
-# changes. Run on a k8s controller:
-#   JUJU_CONTROLLER=<k8s controller> terraform test -filter=tests/oci.tftest.hcl
+# k8s only. An oci-image resource is set at deploy and re-attached on change.
 
 variables {
   app_name = "local-charm-oci"
@@ -21,7 +19,7 @@ run "deploy_image_a" {
     charm_path = run.setup.charm_paths["test-charm-oci"]
     resources  = { workload-image = "docker.io/library/busybox:1.36" }
   }
-  # The image went in with deploy, so the attach must be skipped on this apply.
+  # The image went in with deploy, so this apply must skip the attach.
   assert {
     condition     = data.external.app.result.exists == "false"
     error_message = "expected the first apply to see no existing app, so the image isn't attached twice"
