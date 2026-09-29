@@ -16,8 +16,6 @@ locals {
     RUN_IF_EXISTS = abspath("${path.module}/scripts/run-if-app-exists.sh")
   }
 
-  bindings = join(" ", [for k, v in var.endpoint_bindings : k == "" ? v : "${k}=${v}"])
-
   deploy_command = join(" ", concat(
     ["\"$JUJU\" deploy \"$CHARM\" \"$APP\" -m \"$MODEL\" -n \"$UNITS\""],
     var.base != null ? ["--base \"$BASE\""] : [],
@@ -95,7 +93,7 @@ resource "terraform_data" "charm" {
       UNITS       = tostring(var.units)
       BASE        = coalesce(var.base, "-")
       CONSTRAINTS = coalesce(var.constraints, "-")
-      BINDINGS    = local.bindings
+      BINDINGS    = join(" ", [for k, v in var.endpoint_bindings : k == "" ? v : "${k}=${v}"])
     }, local.resource_env, local.storage_env, local.config_env)
   }
 }
@@ -155,14 +153,14 @@ resource "terraform_data" "expose" {
   provisioner "local-exec" {
     command = join(" ", concat(
       ["\"$JUJU\" expose \"$APP\" -m \"$MODEL\""],
-      try(var.expose.endpoints, null) != null ? ["--endpoints \"$ENDPOINTS\""] : [],
-      try(var.expose.cidrs, null) != null ? ["--to-cidrs \"$CIDRS\""] : [],
-      try(var.expose.spaces, null) != null ? ["--to-spaces \"$SPACES\""] : [],
+      var.expose.endpoints != null ? ["--endpoints \"$ENDPOINTS\""] : [],
+      var.expose.cidrs != null ? ["--to-cidrs \"$CIDRS\""] : [],
+      var.expose.spaces != null ? ["--to-spaces \"$SPACES\""] : [],
     ))
     environment = merge(local.env, {
-      ENDPOINTS = coalesce(try(var.expose.endpoints, null), "-")
-      CIDRS     = coalesce(try(var.expose.cidrs, null), "-")
-      SPACES    = coalesce(try(var.expose.spaces, null), "-")
+      ENDPOINTS = coalesce(var.expose.endpoints, "-")
+      CIDRS     = coalesce(var.expose.cidrs, "-")
+      SPACES    = coalesce(var.expose.spaces, "-")
     })
   }
 
