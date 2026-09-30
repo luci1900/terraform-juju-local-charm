@@ -27,6 +27,11 @@ locals {
     [for i, k in local.config_names : "--config \"$CONFIG_${i}\""],
   ))
 
+  already_exists_command = <<-EOT
+    echo "Application \"$APP\" already exists in model $MODEL. Remove it first, or wait if it's still being removed." >&2
+    exit 1
+  EOT
+
   refresh_command = <<-EOT
     "$JUJU" refresh "$APP" -m "$MODEL" --path "$CHARM"
   EOT
@@ -76,6 +81,13 @@ resource "terraform_data" "app" {
     REMOVAL_TIMEOUT = trimsuffix(var.removal_timeout, "s")
   })
   triggers_replace = [var.app_name, var.model_uuid]
+
+  # Created only for a new application, so fail rather than take over one that
+  # already exists.
+  provisioner "local-exec" {
+    command     = local.app_exists ? local.already_exists_command : "true"
+    environment = local.env
+  }
 
   provisioner "local-exec" {
     when        = destroy

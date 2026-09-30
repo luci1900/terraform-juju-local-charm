@@ -37,6 +37,7 @@ Resources that use the application (`juju_integration`, `juju_offer`, `juju_acce
 
 - The module runs the `juju` CLI, which must be installed and logged in wherever Terraform runs. It uses the CLI's current controller, not the provider's credentials. Point `juju switch` or `JUJU_CONTROLLER` at the same controller as the provider. Otherwise the module fails with a "model not found" error naming the controller it used.
 - The `juju` snap can only read non-hidden paths under `$HOME`. Keep `.charm` and resource files there, not in `/tmp`.
+- Existing applications can't be imported. Remove the application and let the module deploy it.
 - The `.charm` file must exist when Terraform plans. Build it before running Terraform, not in the same apply.
 - `units`, `base`, `constraints`, `trust`, `storage_directives` and `endpoint_bindings` are only set at deploy. Changing them later has no effect and plans show a warning naming them. [Replace the application](#replace-or-refresh) to apply them.
 - Out-of-band changes (`juju refresh`, `juju config`, removing the app, etc.) aren't detected. Only changes to the Terraform inputs are applied. To undo them, [refresh or replace the application](#replace-or-refresh).
@@ -62,6 +63,7 @@ terraform apply
 ## How it works
 
 - The first apply runs `juju deploy`. Later applies run `juju refresh --path` when the `.charm` file's content changes.
+- The first apply fails if `app_name` is already taken, so an existing application is never taken over by mistake.
 - Resources and config are passed to `juju deploy`. After that, a changed resource is re-attached with `juju attach-resource` without refreshing the charm, changed config keys are set, and removed keys are reset. Expose is re-applied when its value changes.
 - Each command is a `terraform_data` resource, so plans show them being replaced when something changes. Replacing `terraform_data.charm` runs `juju refresh`, and replacing a resource or config entry re-attaches or sets it. Only replacing `terraform_data.app` (when `app_name` or `model_uuid` changes) removes the application.
 - Destroy removes the application and waits until it's gone, for up to `removal_timeout` (`"900s"` by default). Set `wait_for_removal = false` to skip the wait. If the application was already removed outside Terraform, destroy skips it.
