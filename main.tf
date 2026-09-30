@@ -44,6 +44,9 @@ locals {
     "$JUJU" config "$APP" -m "$MODEL" "$KEY=$VALUE"
   EOT
 
+  # Runs instead of a command that isn't needed.
+  skip = "true"
+
   # File resources are tracked by content, image references by value.
   resource_values       = { for k, v in var.resources : k => fileexists(v) ? abspath(v) : v }
   resource_fingerprints = { for k, v in var.resources : k => fileexists(v) ? filesha256(v) : v }
@@ -52,6 +55,14 @@ locals {
   resource_names = sort(keys(var.resources))
   resource_env   = { for i, k in local.resource_names : "RESOURCE_${i}" => "${k}=${local.resource_values[k]}" }
 
+  # Same for storage and config keys.
+  storage_names = sort(keys(var.storage_directives))
+  storage_env   = { for i, k in local.storage_names : "STORAGE_${i}" => "${k}=${var.storage_directives[k]}" }
+
+  config_names = sort(keys(var.config))
+  config_env   = { for i, k in local.config_names : "CONFIG_${i}" => "${k}=${var.config[k]}" }
+
+  # Inputs only used at deploy, compared with what was recorded then.
   deploy_time = {
     units              = var.units
     base               = var.base
@@ -64,13 +75,6 @@ locals {
     for k, v in local.deploy_time : k
     if jsonencode(v) != jsonencode(terraform_data.deployed.output[k])
   ]
-
-  # Same for storage and config keys.
-  storage_names = sort(keys(var.storage_directives))
-  storage_env   = { for i, k in local.storage_names : "STORAGE_${i}" => "${k}=${var.storage_directives[k]}" }
-
-  config_names = sort(keys(var.config))
-  config_env   = { for i, k in local.config_names : "CONFIG_${i}" => "${k}=${var.config[k]}" }
 }
 
 # Owns the application's lifetime: the only resource that removes it.
@@ -85,7 +89,7 @@ resource "terraform_data" "app" {
   # Created only for a new application, so fail rather than take over one that
   # already exists.
   provisioner "local-exec" {
-    command     = local.app_exists ? local.already_exists_command : "true"
+    command     = local.app_exists ? local.already_exists_command : local.skip
     environment = local.env
   }
 
@@ -123,7 +127,7 @@ resource "terraform_data" "resource" {
   depends_on       = [terraform_data.charm]
 
   provisioner "local-exec" {
-    command     = local.app_exists ? local.attach_command : "true"
+    command     = local.app_exists ? local.attach_command : local.skip
     environment = merge(local.env, { RESOURCE = "${each.key}=${local.resource_values[each.key]}" })
   }
 }
@@ -154,7 +158,7 @@ resource "terraform_data" "config_value" {
   depends_on = [terraform_data.charm]
 
   provisioner "local-exec" {
-    command     = local.app_exists ? local.config_command : "true"
+    command     = local.app_exists ? local.config_command : local.skip
     environment = merge(local.env, { KEY = each.key, VALUE = each.value })
   }
 }
