@@ -111,8 +111,8 @@ resource "terraform_data" "charm" {
     environment = merge(local.env, {
       CHARM       = abspath(var.charm_path)
       UNITS       = tostring(var.units)
-      BASE        = coalesce(var.base, "-")
-      CONSTRAINTS = coalesce(var.constraints, "-")
+      BASE        = var.base
+      CONSTRAINTS = var.constraints
       BINDINGS    = join(" ", [for k, v in var.endpoint_bindings : k == "" ? v : "${k}=${v}"])
     }, local.resource_env, local.storage_env, local.config_env)
   }
@@ -178,9 +178,9 @@ resource "terraform_data" "expose" {
       var.expose.spaces != null ? ["--to-spaces \"$SPACES\""] : [],
     ))
     environment = merge(local.env, {
-      ENDPOINTS = coalesce(var.expose.endpoints, "-")
-      CIDRS     = coalesce(var.expose.cidrs, "-")
-      SPACES    = coalesce(var.expose.spaces, "-")
+      ENDPOINTS = var.expose.endpoints
+      CIDRS     = var.expose.cidrs
+      SPACES    = var.expose.spaces
     })
   }
 
