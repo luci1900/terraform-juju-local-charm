@@ -1,7 +1,9 @@
-# Deploy v1, refresh to v2, then check a reapply changes nothing.
+# Deploy v1, refresh to v2, then check a reapply changes nothing. Then change
+# the file resource, which is re-attached without a refresh.
 
 variables {
-  app_name = "local-charm"
+  app_name  = "local-charm"
+  resources = { workload-file = "tests/fixtures/files/a.txt" }
 }
 
 run "setup" {
@@ -72,6 +74,35 @@ run "check_unchanged" {
   assert {
     condition     = output.charm_rev == run.check_v2.charm_rev
     error_message = "expected no refresh when the charm is unchanged"
+  }
+  assert {
+    condition     = output.resource_timestamps["workload-file"] == run.check_v2.resource_timestamps["workload-file"]
+    error_message = "expected no re-attach when the file is unchanged"
+  }
+}
+
+run "change_file" {
+  variables {
+    model_uuid = run.setup.model_uuid
+    charm_path = run.setup.charm_paths["test-charm-v2"]
+    resources  = { workload-file = "tests/fixtures/files/b.txt" }
+  }
+}
+
+run "check_file" {
+  module {
+    source = "./tests/check"
+  }
+  variables {
+    model_uuid = run.setup.model_uuid
+  }
+  assert {
+    condition     = output.resource_fingerprints["workload-file"] != run.check_unchanged.resource_fingerprints["workload-file"]
+    error_message = "expected the new file to be attached"
+  }
+  assert {
+    condition     = output.charm_rev == run.check_unchanged.charm_rev
+    error_message = "a resource change must not refresh the charm"
   }
 }
 

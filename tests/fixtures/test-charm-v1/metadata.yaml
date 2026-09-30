@@ -6,3 +6,8 @@ bases:
     channel: "22.04"
   - name: ubuntu
     channel: "24.04"
+resources:
+  workload-file:
+    type: file
+    filename: workload.txt
+    description: workload file

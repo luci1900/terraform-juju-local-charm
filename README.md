@@ -74,7 +74,11 @@ See [variables.tf](variables.tf) and [outputs.tf](outputs.tf).
 
 ## Testing
 
-`terraform test` against the CLI's current controller, in a new model on its default cloud. Needs `jq`. `tests/resources.tftest.hcl` needs a k8s controller.
+`terraform test` against the CLI's current controller, in a new model on its default cloud.
+
+### Requirements
+- `jq`
+- `tests/oci.tftest.hcl` needs a k8s controller.
 
 ```sh
 JUJU_CONTROLLER=<controller> terraform test
