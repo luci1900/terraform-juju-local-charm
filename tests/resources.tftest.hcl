@@ -18,7 +18,7 @@ run "deploy_a" {
     model_uuid = run.setup.model_uuid
     charm_path = run.setup.charm_paths["test-charm-oci"]
     resources = {
-      workload-image = "docker.io/library/busybox:1.36"
+      workload-image = "registry.k8s.io/pause:3.9"
       workload-file  = "tests/fixtures/files/a.txt"
     }
   }
@@ -43,7 +43,7 @@ run "change_to_b" {
     model_uuid = run.setup.model_uuid
     charm_path = run.setup.charm_paths["test-charm-oci"]
     resources = {
-      workload-image = "docker.io/library/busybox:1.37"
+      workload-image = "registry.k8s.io/pause:3.10"
       workload-file  = "tests/fixtures/files/b.txt"
     }
   }
@@ -76,7 +76,7 @@ run "reapply" {
     model_uuid = run.setup.model_uuid
     charm_path = run.setup.charm_paths["test-charm-oci"]
     resources = {
-      workload-image = "docker.io/library/busybox:1.37"
+      workload-image = "registry.k8s.io/pause:3.10"
       workload-file  = "tests/fixtures/files/b.txt"
     }
   }
