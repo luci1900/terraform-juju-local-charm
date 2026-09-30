@@ -24,6 +24,23 @@ variable "juju_binary" {
   default     = "juju"
 }
 
+variable "wait_for_removal" {
+  description = "Whether destroy waits for the application to be removed."
+  type        = bool
+  default     = true
+}
+
+variable "removal_timeout" {
+  description = "How long destroy waits for the application to be removed, in seconds, e.g. \"60s\"."
+  type        = string
+  default     = "900s"
+
+  validation {
+    condition     = can(regex("^[1-9][0-9]*s$", var.removal_timeout))
+    error_message = "removal_timeout must be a non-zero number of seconds, e.g. \"60s\"."
+  }
+}
+
 variable "units" {
   description = "Number of units. Deploy-time only: changing it after deploy has no effect."
   type        = number

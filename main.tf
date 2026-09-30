@@ -70,13 +70,17 @@ locals {
 
 # Owns the application's lifetime: the only resource that removes it.
 resource "terraform_data" "app" {
-  input            = local.env
+  input = merge(local.env, {
+    REMOVE_APP      = abspath("${path.module}/scripts/remove-app.sh")
+    WAIT            = tostring(var.wait_for_removal)
+    REMOVAL_TIMEOUT = trimsuffix(var.removal_timeout, "s")
+  })
   triggers_replace = [var.app_name, var.model_uuid]
 
   provisioner "local-exec" {
     when        = destroy
     command     = <<-EOT
-      sh "$RUN_IF_EXISTS" "$JUJU" remove-application "$APP" -m "$MODEL" --no-prompt
+      sh "$REMOVE_APP"
     EOT
     environment = self.input
   }
@@ -187,6 +191,11 @@ resource "terraform_data" "deployed" {
 check "deploy_time_inputs" {
   assert {
     condition     = length(local.deploy_time_changed) == 0
-    error_message = "Changed after deploy, so these have no effect: ${join(", ", local.deploy_time_changed)}. Replace the application to apply them (terraform apply -replace='<module address>.terraform_data.app')."
+    error_message = <<-EOT
+      These changes after deploy have no effect: ${join(", ", local.deploy_time_changed)}.
+      To apply them, replace the application:
+        terraform apply -destroy -target='<module address>'
+        terraform apply
+    EOT
   }
 }
