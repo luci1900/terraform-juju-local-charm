@@ -66,7 +66,7 @@ terraform apply
 - The first apply fails if `app_name` is already taken, so an existing application is never taken over by mistake.
 - Resources and config are passed to `juju deploy`. After that, a changed resource is re-attached with `juju attach-resource` without refreshing the charm, changed config keys are set, and removed keys are reset. Expose is re-applied when its value changes.
 - Each command is a `terraform_data` resource, so plans show them being replaced when something changes. Replacing `terraform_data.charm` runs `juju refresh`, and replacing a resource or config entry re-attaches or sets it. Only replacing `terraform_data.app` (when `app_name` or `model_uuid` changes) removes the application.
-- Destroy removes the application and waits until it's gone, for up to `removal_timeout` (`"900s"` by default). Set `wait_for_removal = false` to skip the wait. If the application was already removed outside Terraform, destroy skips it.
+- Destroy removes the application and waits until it's gone, for up to `removal_timeout` seconds (900 by default). Set `wait_for_removal = false` to skip the wait. If the application was already removed outside Terraform, destroy skips it.
 
 ## Inputs and outputs
 

@@ -78,7 +78,7 @@ resource "terraform_data" "app" {
   input = merge(local.env, {
     REMOVE_APP      = abspath("${path.module}/scripts/remove-app.sh")
     WAIT            = tostring(var.wait_for_removal)
-    REMOVAL_TIMEOUT = trimsuffix(var.removal_timeout, "s")
+    REMOVAL_TIMEOUT = tostring(var.removal_timeout)
   })
   triggers_replace = [var.app_name, var.model_uuid]
 

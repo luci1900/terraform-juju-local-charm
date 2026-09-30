@@ -31,13 +31,13 @@ variable "wait_for_removal" {
 }
 
 variable "removal_timeout" {
-  description = "How long destroy waits for the application to be removed, in seconds, e.g. \"60s\"."
-  type        = string
-  default     = "900s"
+  description = "Seconds destroy waits for the application to be removed."
+  type        = number
+  default     = 900
 
   validation {
-    condition     = can(regex("^[1-9][0-9]*s$", var.removal_timeout))
-    error_message = "removal_timeout must be a non-zero number of seconds, e.g. \"60s\"."
+    condition     = var.removal_timeout > 0 && floor(var.removal_timeout) == var.removal_timeout
+    error_message = "removal_timeout must be a positive whole number of seconds."
   }
 }
 
