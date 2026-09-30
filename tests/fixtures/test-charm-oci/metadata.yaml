@@ -8,3 +8,7 @@ resources:
   workload-image:
     type: oci-image
     description: workload image
+  workload-file:
+    type: file
+    filename: workload.txt
+    description: workload file
